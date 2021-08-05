@@ -39,6 +39,10 @@ class Response
 
     public function getExample()
     {
+        if (empty($this->example)) {
+            return '{}';
+        }
+
         return $this->example;
     }
 
