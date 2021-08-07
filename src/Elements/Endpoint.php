@@ -3,13 +3,17 @@
 namespace Bulbadev\Autodoc\Elements;
 
 use Bulbadev\Autodoc\FormRequest\Manager as FormRequestManager;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Minime\Annotations\Cache\ArrayCache;
+use Minime\Annotations\Interfaces\AnnotationsBagInterface;
 use Minime\Annotations\Parser;
 use Minime\Annotations\Reader as AnnotationReader;
 
 class Endpoint
 {
+    public const TAG_DESCRIPTION      = '_description';
+    public const TAG_USE_PARENT_CLASS = 'inheritDoc';
 
     public ParameterBag $parameterBag;
     public ResponseBag  $responseBag;
@@ -22,15 +26,36 @@ class Endpoint
     public function __construct(Request $request, Document $document)
     {
         $formRequest         = FormRequestManager::buildFrom($request);
-        $annotations         = (new AnnotationReader(new Parser(), new ArrayCache()))->getClassAnnotations(
-            $formRequest
-        );
+        $annotations         = $this->getAnnotations($formRequest);
         $this->uri           = new Uri($request, $document);
         $this->responseBag   = new ResponseBag();
         $this->parametersBag = new ParameterBag($annotations, $formRequest);
         $this->tags          = new Tags($this->uri);
-        $this->description   = $annotations->get('_description', '');
+        $this->description   = $annotations->get(self::TAG_DESCRIPTION, '');
         $this->method        = $request->method();
+    }
+
+    /**
+     * @throws \ReflectionException
+     */
+    private function getAnnotations(FormRequest $formRequest, array $childAnnotations = []): AnnotationsBagInterface
+    {
+        $annotations = (new AnnotationReader(new Parser(), new ArrayCache()))->getClassAnnotations(
+            $formRequest
+        );
+
+        array_walk($childAnnotations, fn($value, $key) => $annotations->set($key, $value));
+
+        if ($annotations->has(self::TAG_USE_PARENT_CLASS))
+        {
+            $parentFormRequest = (new \ReflectionClass($formRequest))->getParentClass()
+                                                                     ->getName();
+            $annotations->offsetUnset(self::TAG_USE_PARENT_CLASS);
+
+            return $this->getAnnotations(new $parentFormRequest, $annotations->toArray());
+        }
+
+        return $annotations;
     }
 
     public function __call($name, $arguments)

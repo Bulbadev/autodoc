@@ -46,4 +46,21 @@ abstract class BuildStrategy
 
         return $document;
     }
+
+    protected function mergeWithSavingEndpoints(array $oldPaths, array $newPaths): array
+    {
+        foreach ($newPaths as $path => $methods)
+        {
+            if (isset($oldPaths[$path]))
+            {
+                $oldPaths[$path] = array_merge($oldPaths[$path], $methods);
+            }
+            else
+            {
+                $oldPaths[$path] = $methods;
+            }
+        }
+
+        return $oldPaths;
+    }
 }

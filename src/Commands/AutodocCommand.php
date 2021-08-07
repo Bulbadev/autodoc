@@ -5,6 +5,7 @@ namespace Bulbadev\Autodoc\Commands;
 use Bulbadev\Autodoc\ApiVersions\Base;
 use Bulbadev\Autodoc\AutodocRunner;
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class AutodocCommand extends Command
@@ -31,6 +32,10 @@ class AutodocCommand extends Command
             return;
         }
 
+        if ($this->useDefaultConfig()) {
+            return;
+        }
+
         $apiVersions = config('autodoc.api_versions');
         if (empty($apiVersions)) {
             $this->error('You must create API version class extended by ' . Base::class);
@@ -51,41 +56,62 @@ class AutodocCommand extends Command
             $phpunitPath = $this->ask('Enter your custom phpunit.xml path with name and extantion');
         }
 
+        $version = null;
         if ($this->confirm(
             'Do you want set API version build? If not, then the minor version will be increased by 1'
-        )) {
+        ))
+        {
             $version = $this->ask('Enter API version build, for example 1.0.21', '');
         }
 
-        $apiClass     = app($apiVersion);
-        $tableHeaders = ['Setting', 'Value', 'Comment'];
-        $tableValues  = [
-            ['api class', Str::afterLast($apiVersion, '\\'), $apiVersion],
-            ['strategy', $strategy, AutodocRunner::STRATEGIES[$strategy]],
-            ['client', $client, AutodocRunner::CLIENTS[$client]],
-            ['phpunit.xml', $phpunitPath ?? 'default', ''],
-            ['tests', $this->argument('path') ?? $apiClass->getTestsPath(), ''],
-        ];
+        $this->exec($strategy, $client, $apiVersion, $version, $phpunitPath);
+    }
 
-        if (!empty($version)) {
-            $tableValues[] = ['version', $version, ''];
+
+    public function useDefaultConfig(): bool
+    {
+        $strategy        = AutodocRunner::STRATEGY_UPDATE_OLD;
+        $client          = AutodocRunner::CLIENT_SWAGGER303;
+        $apiVersionClass = Arr::first(config('autodoc.api_versions'));
+
+        return $this->exec($strategy, $client, $apiVersionClass);
+    }
+
+
+    protected function exec(?string $strategy = null, ?string $client = null, ?string $apiVersionClass = null, ?string $apiVersion = null, ?string $phpunitPath = null): bool
+    {
+        $apiVersionInstance = app($apiVersionClass);
+        $tableHeaders       = ['Setting', 'Value', 'Comment'];
+        $tableValues        = [
+            ['api class', Str::afterLast($apiVersionClass, '\\'), $apiVersionClass],
+            ['strategy', $strategy, $strategy],
+            ['client', $client, $client],
+            ['phpunit.xml', $phpunitPath ?? 'default', ''],
+            ['tests', $this->argument('path') ?? $apiVersionInstance->getTestsPath(), ''],
+        ];
+        if (!empty($apiVersion))
+        {
+            $tableValues[] = ['version', $apiVersion, ''];
         }
 
         $this->table($tableHeaders, $tableValues);
 
-        if (!$this->confirm('Is correct settings?')) {
-            return;
+        if ($this->confirm('Is correct settings?', true))
+        {
+            app(AutodocRunner::class)
+                ->setStrategy($strategy)
+                ->setClient($client)
+                ->setApiClass($apiVersionInstance)
+                ->when(!empty($apiVersion), fn($builder) => $builder->setVersion($apiVersion))
+                ->when($phpunitPath, fn($builder) => $builder->setPhpunitPath($phpunitPath))
+                ->when($this->argument('path'), fn($builder) => $builder->setCustomTestsPath($this->argument('path')))
+                ->run();
+
+            $this->info('Check API documentation by path ' . $apiVersionInstance->getFinalPath());
+
+            return true;
         }
 
-        app(AutodocRunner::class)
-            ->setStrategy($strategy)
-            ->setClient($client)
-            ->setApiClass($apiClass)
-            ->when(!empty($version), fn($builder) => $builder->setVersion($version))
-            ->when($phpunitPath, fn($builder) => $builder->setPhpunitPath($phpunitPath))
-            ->when($this->argument('path'), fn($builder) => $builder->setCustomTestsPath($this->argument('path')))
-            ->run();
-
-        $this->info('Check API documentation by path ' . $apiClass->getFinalPath());
+        return false;
     }
 }

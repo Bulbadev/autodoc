@@ -9,9 +9,15 @@ class AddNew extends BuildStrategy
 
     public function mergeForSwagger303(array $oldPaths, array $newPaths): array
     {
-        $oldPathsKeys  = array_keys($oldPaths);
-        $newAddedPaths = Arr::except($newPaths, $oldPathsKeys);
+        foreach ($newPaths as $path => $methods)
+        {
+            if (isset($oldPaths[$path]))
+            {
+                $oldMethods      = array_keys($oldPaths[$path]);
+                $newPaths[$path] = Arr::except($methods, $oldMethods);
+            }
+        }
 
-        return array_merge($oldPaths, $newAddedPaths);
+        return $this->mergeWithSavingEndpoints($oldPaths, $newPaths);
     }
 }
