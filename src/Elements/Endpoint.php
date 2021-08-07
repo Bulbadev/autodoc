@@ -38,23 +38,21 @@ class Endpoint
     /**
      * @throws \ReflectionException
      */
-    private function getAnnotations(FormRequest $formRequest, string $description = null): AnnotationsBagInterface
+    private function getAnnotations(FormRequest $formRequest, array $childAnnotations = []): AnnotationsBagInterface
     {
         $annotations = (new AnnotationReader(new Parser(), new ArrayCache()))->getClassAnnotations(
             $formRequest
         );
 
+        array_walk($childAnnotations, fn($value, $key) => $annotations->set($key, $value));
+
         if ($annotations->has(self::TAG_USE_PARENT_CLASS))
         {
             $parentFormRequest = (new \ReflectionClass($formRequest))->getParentClass()
                                                                      ->getName();
+            $annotations->offsetUnset(self::TAG_USE_PARENT_CLASS);
 
-            return $this->getAnnotations(new $parentFormRequest, $annotations->get(self::TAG_DESCRIPTION));
-        }
-
-        if ($description)
-        {
-            $annotations->set(self::TAG_DESCRIPTION, $description);
+            return $this->getAnnotations(new $parentFormRequest, $annotations->toArray());
         }
 
         return $annotations;

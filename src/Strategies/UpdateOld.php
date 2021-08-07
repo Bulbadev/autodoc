@@ -9,12 +9,12 @@ class UpdateOld extends BuildStrategy
 
     public function mergeForSwagger303(array $oldPaths, array $newPaths): array
     {
-        foreach ($newPaths as $endpoint => $data)
+        foreach ($newPaths as $path => $methods)
         {
-            if (isset($oldPaths[$endpoint]))
+            if (isset($oldPaths[$path]))
             {
-                $oldMethods          = array_keys($oldPaths[$endpoint]);
-                $newPaths[$endpoint] = Arr::only($data, $oldMethods);
+                $oldMethods      = array_keys($oldPaths[$path]);
+                $newPaths[$path] = Arr::only($methods, $oldMethods);
             }
         }
 

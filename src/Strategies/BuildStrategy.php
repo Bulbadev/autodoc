@@ -49,15 +49,15 @@ abstract class BuildStrategy
 
     protected function mergeWithSavingEndpoints(array $oldPaths, array $newPaths): array
     {
-        foreach ($newPaths as $endpoint => $newData)
+        foreach ($newPaths as $path => $methods)
         {
-            if (isset($oldPaths[$endpoint]))
+            if (isset($oldPaths[$path]))
             {
-                $oldPaths[$endpoint] = array_merge($oldPaths[$endpoint], $newData);
+                $oldPaths[$path] = array_merge($oldPaths[$path], $methods);
             }
             else
             {
-                $oldPaths[$endpoint] = $newData;
+                $oldPaths[$path] = $methods;
             }
         }
 
