@@ -30,13 +30,13 @@ trait AutodocTestCaseTrait
                     $allTestCount = $allTestCount->getValue($listener);
                 }
             }
-        }
-        $currentTestCount = $this->getTestResultObject()
-                                 ->count();
+            $currentTestCount = $this->getTestResultObject()
+                                     ->count();
 
-        if (!$this->hasFailed() && ($currentTestCount === $allTestCount))
-        {
-            app(BuildStrategy::class)->finish();
+            if (!$this->hasFailed() && ($currentTestCount === $allTestCount))
+            {
+                app(BuildStrategy::class)->finish();
+            }
         }
 
         parent::tearDown();
